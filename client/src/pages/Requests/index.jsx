@@ -12,6 +12,7 @@ import Badge from '../../components/ui/Badge';
 import Button from '../../components/ui/Button';
 import api from '../../services/api';
 import { useToast } from '../../context/ToastContext';
+import GoogleCalendarButton from '../../components/common/GoogleCalendarButton';
 import { formatCurrency, formatDate } from '../../utils/formatters';
 
 const STATUS_COLORS = {
@@ -95,27 +96,19 @@ const ProposalCard = ({
       )}
 
       {proposal.status === 'accepted' && (
-        <div className="mt-3 rounded-md border border-concrete-200 bg-concrete-50 p-3 text-sm">
-          {proposal.session?.calendarSynced ? (
-            <>
-              <span className="font-semibold text-emerald-700">Calendar invite sent.</span>{' '}
-              {proposal.session.calendarEventLink && (
-               <a
-                 href={proposal.session.calendarEventLink}
-                 target="_blank"
-                 rel="noopener noreferrer"
-                 className="font-semibold text-navy-800 underline"
-               >
-                 View calendar event
-               </a>
-              )}
-            </>
-          ) : (
-            <span className="text-steel-600">
-              Trade accepted, but the calendar invite couldn't be sent automatically
-              {proposal.session?.calendarError ? ` (${proposal.session.calendarError})` : ''}.
-            </span>
-          )}
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-md border border-emerald-200 bg-emerald-50/60 p-3 text-sm">
+          <div>
+            <span className="font-semibold text-emerald-800">Trade Accepted!</span>
+            <p className="text-xs text-steel-600">
+              Session scheduled for {formatDateTime(proposal.proposedSessionAt)}
+            </p>
+          </div>
+          <GoogleCalendarButton
+            title={`TradeLink Session: ${proposal.listingTitle}`}
+            details={`Skill exchange session between ${proposal.requester?.name || 'Requester'} and ${proposal.provider?.name || 'Provider'} via TradeLink.\nPrice: ৳${proposal.finalPriceBDT}`}
+            startTime={proposal.proposedSessionAt}
+            eventLink={proposal.session?.calendarEventLink}
+          />
         </div>
       )}
 

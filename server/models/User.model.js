@@ -31,6 +31,15 @@ const UserSchema = new mongoose.Schema(
     bio: { type: String, default: '' },
     company: { type: String, default: '' },
     phone: { type: String, default: '' },
+
+    // Optional — only set if the user opts in, for Multi-Party Trade Chains'
+    // meeting-point suggestion (services/tradeChain.service.js). Absent for
+    // every existing user until they add it via their profile.
+    location: {
+      city: { type: String, default: '' },
+      lat: { type: Number, default: null },
+      lng: { type: Number, default: null },
+    },
     role: {
       type: String,
       enum: ['client', 'operations', 'admin'],
@@ -69,6 +78,7 @@ UserSchema.methods.toPublicJSON = function () {
     bio: this.bio,
     company: this.company,
     phone: this.phone,
+    location: this.location,
     role: this.role,
     isVerified: this.isVerified,
     isSuspended: this.isSuspended,

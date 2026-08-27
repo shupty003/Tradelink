@@ -40,11 +40,11 @@ const userController = {
 
   /**
    * PATCH /api/users/profile
-   * Updates authenticated user's profile details (name, bio, company, phone, avatar).
+   * Updates authenticated user's profile details (name, bio, company, phone, avatar, location).
    */
   updateProfile: async (req, res, next) => {
     try {
-      const { name, bio, company, phone, avatar } = req.body;
+      const { name, bio, company, phone, avatar, location } = req.body;
       const user = await User.findById(req.user.id);
 
       if (!user) {
@@ -56,6 +56,13 @@ const userController = {
       if ('company' in req.body) {user.company = company;}
       if ('phone' in req.body) {user.phone = phone;}
       if ('avatar' in req.body) {user.avatar = avatar;}
+      if ('location' in req.body) {
+        user.location = {
+          city: location?.city || '',
+          lat: typeof location?.lat === 'number' ? location.lat : null,
+          lng: typeof location?.lng === 'number' ? location.lng : null,
+        };
+      }
 
       await user.save();
 

@@ -9,11 +9,13 @@
  */
 
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import Badge from '../../components/ui/Badge';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
 import api from '../../services/api';
 import { formatCurrency, formatDate } from '../../utils/formatters';
+import { ROUTES } from '../../constants';
 
 import { useToast } from '../../context/ToastContext';
 
@@ -37,11 +39,21 @@ const StatusBadge = ({ status }) => (
   <Badge color={status === 'active' ? 'green' : 'gray'}>{status === 'active' ? 'Active' : 'Inactive'}</Badge>
 );
 
+const EMPTY_WANT_FORM = { category: '', customCategoryName: '', notes: '' };
+
 const MySkills = () => {
   const { addToast } = useToast();
   const [categories, setCategories] = useState([]);
   const [listings, setListings] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // ─── Wants (Multi-Party Trade Chains) ────────────────────────────────────
+  const [wants, setWants] = useState([]);
+  const [wantsLoading, setWantsLoading] = useState(true);
+  const [wantForm, setWantForm] = useState(EMPTY_WANT_FORM);
+  const [wantFormError, setWantFormError] = useState('');
+  const [wantSubmitting, setWantSubmitting] = useState(false);
+  const [wantBusyId, setWantBusyId] = useState(null);
 
   const [form, setForm] = useState(EMPTY_FORM);
   const [formError, setFormError] = useState('');
@@ -67,13 +79,76 @@ const MySkills = () => {
       .finally(() => setLoading(false));
   };
 
+  const loadWants = () => {
+    setWantsLoading(true);
+    api
+      .get('/wants/mine')
+      .then(res => setWants(res.data.data))
+      .catch(() => setWants([]))
+      .finally(() => setWantsLoading(false));
+  };
+
   useEffect(() => {
     loadAll();
+    loadWants();
   }, []);
 
   const categoryName = slug => {
     if (slug === 'other') return 'Other';
     return categories.find(c => c.slug === slug)?.name || slug;
+  };
+
+  // ─── Wants: create / delete ──────────────────────────────────────────────
+
+  const handleWantFormChange = e => {
+    const { name, value } = e.target;
+    setWantForm(prev => ({ ...prev, [name]: value }));
+    setWantFormError('');
+  };
+
+  const handleWantSubmit = async e => {
+    e.preventDefault();
+    setWantFormError('');
+
+    if (!wantForm.category) {
+      setWantFormError('Category is required.');
+      return;
+    }
+    if (wantForm.category === 'other' && !wantForm.customCategoryName.trim()) {
+      setWantFormError("Please name the skill category since it isn't in the list.");
+      return;
+    }
+
+    setWantSubmitting(true);
+    try {
+      await api.post('/wants', {
+        category: wantForm.category,
+        customCategoryName: wantForm.category === 'other' ? wantForm.customCategoryName.trim() : undefined,
+        notes: wantForm.notes.trim(),
+      });
+      setWantForm(EMPTY_WANT_FORM);
+      addToast('Added to what you\'re looking for!', 'success');
+      loadWants();
+    } catch (err) {
+      const msg = err.response?.data?.message || 'Failed to add. Please try again.';
+      setWantFormError(msg);
+      addToast(msg, 'error');
+    } finally {
+      setWantSubmitting(false);
+    }
+  };
+
+  const deleteWant = async want => {
+    setWantBusyId(want._id);
+    try {
+      await api.delete(`/wants/${want._id}`);
+      addToast('Removed', 'info');
+      loadWants();
+    } catch (err) {
+      addToast(err.response?.data?.message || 'Failed to remove.', 'error');
+    } finally {
+      setWantBusyId(null);
+    }
   };
 
   // ─── Create ───────────────────────────────────────────────────────────────
@@ -432,6 +507,122 @@ const MySkills = () => {
                 </div>
               );
             })}
+          </div>
+        )}
+      </section>
+
+      {/* ── Wants (Multi-Party Trade Chains) ────────────────────────────── */}
+      <div>
+        <span className="eyebrow mb-2">Multi-Party Trade Chains</span>
+        <h2 className="text-2xl font-semibold text-slate-950">What I'm Looking For</h2>
+        <p className="mt-2 text-sm text-steel-600">
+          Add categories you'd like in return. When a direct trade isn't available,{' '}
+          <Link to={ROUTES.TRADE_CHAINS} className="font-semibold text-navy-800 hover:underline">
+            search for a trade chain
+          </Link>{' '}
+          that closes the loop through other members.
+        </p>
+      </div>
+
+      <Card className="p-5 sm:p-6">
+        <h3 className="text-base font-semibold text-slate-950">Add something you're looking for</h3>
+
+        {wantFormError && (
+          <div className="mt-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {wantFormError}
+          </div>
+        )}
+
+        <form className="mt-4 space-y-4" onSubmit={handleWantSubmit}>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+              <label htmlFor="want-category" className="mb-1.5 block text-sm font-medium text-steel-700">
+                Category
+              </label>
+              <CategorySelect
+                id="want-category"
+                categories={categories}
+                value={wantForm.category}
+                onChange={handleWantFormChange}
+              />
+            </div>
+
+            {wantForm.category === 'other' && (
+              <div>
+                <label htmlFor="want-custom-category" className="mb-1.5 block text-sm font-medium text-steel-700">
+                  Skill name (since it isn't in the list)
+                </label>
+                <input
+                  id="want-custom-category"
+                  name="customCategoryName"
+                  type="text"
+                  placeholder="e.g. Falconry"
+                  className="input-base"
+                  value={wantForm.customCategoryName}
+                  onChange={handleWantFormChange}
+                  maxLength={100}
+                  required
+                />
+              </div>
+            )}
+          </div>
+
+          <div>
+            <label htmlFor="want-notes" className="mb-1.5 block text-sm font-medium text-steel-700">
+              Notes <span className="text-xs text-steel-400">(optional)</span>
+            </label>
+            <input
+              id="want-notes"
+              name="notes"
+              type="text"
+              placeholder="Any specifics about what you're looking for"
+              className="input-base"
+              value={wantForm.notes}
+              onChange={handleWantFormChange}
+              maxLength={500}
+            />
+          </div>
+
+          <Button id="want-submit-btn" type="submit" disabled={wantSubmitting}>
+            {wantSubmitting ? 'Adding…' : 'Add to My Wants'}
+          </Button>
+        </form>
+      </Card>
+
+      <section className="surface-card overflow-hidden">
+        <div className="border-b border-concrete-200 px-5 py-4">
+          <h3 className="text-base font-semibold text-slate-950">What You're Looking For</h3>
+        </div>
+
+        {wantsLoading ? (
+          <div className="flex items-center justify-center py-10 text-sm text-steel-500">Loading…</div>
+        ) : wants.length === 0 ? (
+          <div className="py-10 text-center text-sm text-steel-500">
+            Nothing added yet — add something above to start finding trade chains.
+          </div>
+        ) : (
+          <div className="divide-y divide-concrete-200">
+            {wants.map(want => (
+              <div key={want._id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge color="gray">
+                      {want.category === 'other' ? want.customCategoryName : categoryName(want.category)}
+                    </Badge>
+                    {want.notes && <span className="text-sm text-steel-600">{want.notes}</span>}
+                  </div>
+                  <p className="mt-1 text-xs text-steel-400">Added {formatDate(want.createdAt)}</p>
+                </div>
+                <Button
+                  size="sm"
+                  variant="danger"
+                  disabled={wantBusyId === want._id}
+                  onClick={() => deleteWant(want)}
+                >
+                  Remove
+                </Button>
+              </div>
+            ))}
           </div>
         )}
       </section>

@@ -17,6 +17,7 @@ export const ROUTES = {
   WALLET: '/dashboard/wallet',
   TRANSACTIONS: '/dashboard/transactions',
   WATCHLIST: '/dashboard/watchlist',
+  TRADE_CHAINS: '/dashboard/trade-chains',
   ABOUT: '/about',
   CONTACT: '/contact',
 };

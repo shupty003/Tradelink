@@ -19,7 +19,7 @@ const notificationService = {
   /**
    * Fire-and-forget notification creation. Never throws.
    * @param {string} userId
-   * @param {{ category: 'request'|'transaction'|'profile', type: string, title: string, message: string, link?: string, relatedTradeProposal?: string, relatedTransaction?: string }} data
+   * @param {{ category: 'request'|'transaction'|'profile'|'message', type: string, title: string, message: string, link?: string, relatedTradeProposal?: string, relatedTransaction?: string }} data
    */
   notify: async (userId, data) => {
     try {
@@ -43,9 +43,9 @@ const notificationService = {
       { $group: { _id: '$category', count: { $sum: 1 } } },
     ]);
 
-    const counts = { request: 0, transaction: 0, profile: 0 };
+    const counts = { request: 0, transaction: 0, profile: 0, message: 0 };
     rows.forEach(r => { counts[r._id] = r.count; });
-    counts.total = counts.request + counts.transaction + counts.profile;
+    counts.total = counts.request + counts.transaction + counts.profile + counts.message;
     return counts;
   },
 

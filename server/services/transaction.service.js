@@ -37,6 +37,7 @@ const Transaction = require('../models/Transaction.model');
 const sslcommerzService = require('./sslcommerz.service');
 const creditWalletService = require('./creditWallet.service');
 const notificationService = require('./notification.service');
+const conversationService = require('./conversation.service');
 const ApiError = require('../utils/ApiError');
 const logger = require('../utils/logger');
 
@@ -254,6 +255,7 @@ const transactionService = {
 
     logger.info(`[Transaction] ${transaction._id} confirmed paid offline by requester.`);
     await awardCompletionCredits(transaction);
+    await conversationService.deleteConversation({ relatedType: 'TradeProposal', relatedId: transaction.tradeProposal });
     await notifyTransactionStep(
       transaction.provider,
       'transaction_paid',
@@ -313,6 +315,7 @@ const transactionService = {
 
     logger.info(`[Transaction] ${transaction._id} bKash payment verified by provider.`);
     await awardCompletionCredits(transaction);
+    await conversationService.deleteConversation({ relatedType: 'TradeProposal', relatedId: transaction.tradeProposal });
     await notifyTransactionStep(
       transaction.requester,
       'transaction_paid',

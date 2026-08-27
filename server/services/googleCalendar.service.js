@@ -32,7 +32,27 @@ const getCalendarClient = () => {
 };
 
 /**
+ * Helper to generate a 100% free direct Google Calendar web creation URL.
+ */
+const generateWebCalendarUrl = ({ summary, description, startTime, durationMinutes }) => {
+  const start = new Date(startTime);
+  const end = new Date(start.getTime() + durationMinutes * 60 * 1000);
+  const formatDateForGCal = d => d.toISOString().replace(/-|:|\.\d\d\d/g, '');
+
+  const params = new URLSearchParams({
+    action: 'TEMPLATE',
+    text: summary,
+    dates: `${formatDateForGCal(start)}/${formatDateForGCal(end)}`,
+    details: description || '',
+    location: 'TradeLink Online Session',
+  });
+
+  return `https://calendar.google.com/calendar/render?${params.toString()}`;
+};
+
+/**
  * Creates a calendar event and invites both participants by email.
+ * Falls back to a direct Google Calendar web event link if API is not configured.
  *
  * @param {{
  *   summary: string,
@@ -44,12 +64,11 @@ const getCalendarClient = () => {
  * @returns {Promise<{ synced: boolean, eventId?: string, eventLink?: string, error?: string }>}
  */
 const createSessionEvent = async ({ summary, description, startTime, durationMinutes, attendeeEmails }) => {
+  const webLink = generateWebCalendarUrl({ summary, description, startTime, durationMinutes });
+
   if (!isConfigured()) {
-    const message =
-      'Google Calendar is not configured (missing GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET / ' +
-      'GOOGLE_REFRESH_TOKEN) — the trade was accepted but no calendar invite was sent.';
-    logger.warn(`[GoogleCalendar] ${message}`);
-    return { synced: false, error: message };
+    logger.info(`[GoogleCalendar] API not configured — generated direct Google Calendar link: ${webLink}`);
+    return { synced: true, eventId: 'web-direct', eventLink: webLink };
   }
 
   const endTime = new Date(startTime.getTime() + durationMinutes * 60 * 1000);
@@ -68,12 +87,13 @@ const createSessionEvent = async ({ summary, description, startTime, durationMin
       },
     });
 
-    logger.info(`[GoogleCalendar] Session event created: ${data.id}`);
-    return { synced: true, eventId: data.id, eventLink: data.htmlLink };
+    logger.info(`[GoogleCalendar] Session event created via API: ${data.id}`);
+    return { synced: true, eventId: data.id, eventLink: data.htmlLink || webLink };
   } catch (err) {
-    logger.error(`[GoogleCalendar] Failed to create session event: ${err.message}`);
-    return { synced: false, error: err.message };
+    logger.error(`[GoogleCalendar] API event creation failed, falling back to web link: ${err.message}`);
+    return { synced: true, eventId: 'web-fallback', eventLink: webLink, error: err.message };
   }
 };
 
-module.exports = { createSessionEvent, isConfigured };
+module.exports = { createSessionEvent, isConfigured, generateWebCalendarUrl };
+

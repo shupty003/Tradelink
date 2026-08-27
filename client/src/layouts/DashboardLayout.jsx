@@ -18,9 +18,10 @@ const MEMBER_SIDEBAR_LINKS = [
   { label: 'My Skills',      to: ROUTES.MY_SKILLS,             icon: 'MS' },
   { label: 'Credit Wallet',  to: ROUTES.WALLET,                icon: 'CW' },
   { label: 'Watchlist',      to: ROUTES.WATCHLIST,             icon: 'WL' },
+  { label: 'Trade Chains',   to: ROUTES.TRADE_CHAINS,          icon: 'TC' },
   { label: 'Requests',       to: `${ROUTES.DASHBOARD}/requests`, icon: 'RQ', notifCategory: 'request' },
   { label: 'Transactions',   to: `${ROUTES.DASHBOARD}/transactions`, icon: 'TX', notifCategory: 'transaction' },
-  { label: 'Messages',       to: `${ROUTES.DASHBOARD}/messages`, icon: 'MG' },
+  { label: 'Messages',       to: `${ROUTES.DASHBOARD}/messages`, icon: 'MG', notifCategory: 'message' },
   { label: 'Reviews',        to: `${ROUTES.DASHBOARD}/reviews`,  icon: 'RV' },
   { label: 'Settings',       to: `${ROUTES.DASHBOARD}/settings`, icon: 'ST' },
 ];

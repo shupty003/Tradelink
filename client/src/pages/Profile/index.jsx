@@ -17,6 +17,7 @@ import Badge from '../../components/ui/Badge';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import ReputationBadge from '../../components/common/ReputationBadge';
+import IpLocationBadge from '../../components/common/IpLocationBadge';
 import api from '../../services/api';
 import { getInitials, formatDate } from '../../utils/formatters';
 
@@ -214,6 +215,9 @@ const Profile = () => {
     company: user?.company || '',
     phone: user?.phone || '',
     avatar: user?.avatar || '',
+    city: user?.location?.city || '',
+    lat: user?.location?.lat ?? '',
+    lng: user?.location?.lng ?? '',
   });
   const [submitting, setSubmitting] = useState(false);
   const [statusMessage, setStatusMessage] = useState({ type: '', text: '' });
@@ -245,6 +249,9 @@ const Profile = () => {
       company: user.company || '',
       phone: user.phone || '',
       avatar: user.avatar || '',
+      city: user.location?.city || '',
+      lat: user.location?.lat ?? '',
+      lng: user.location?.lng ?? '',
     });
     setStatusMessage({ type: '', text: '' });
     setIsEditing(true);
@@ -270,6 +277,14 @@ const Profile = () => {
       return;
     }
 
+    const hasLat = form.lat !== '';
+    const hasLng = form.lng !== '';
+    if (hasLat !== hasLng) {
+      setStatusMessage({ type: 'error', text: 'Enter both latitude and longitude, or leave both blank.' });
+      addToast('Enter both latitude and longitude, or leave both blank.', 'error');
+      return;
+    }
+
     setSubmitting(true);
     try {
       const res = await updateProfile({
@@ -278,6 +293,11 @@ const Profile = () => {
         company: form.company.trim(),
         phone: form.phone.trim(),
         avatar: form.avatar.trim(),
+        location: {
+          city: form.city.trim(),
+          lat: hasLat ? Number(form.lat) : null,
+          lng: hasLng ? Number(form.lng) : null,
+        },
       });
 
       if (res.success) {
@@ -320,6 +340,35 @@ const Profile = () => {
         )}
       </div>
 
+      {/* ── IP Geolocation 3rd-Party API Banner ───────────────────────── */}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-sky-200 bg-sky-50/80 p-4 text-sm shadow-sm">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-sky-100 text-lg text-sky-700">
+            🌐
+          </div>
+          <div>
+            <p className="font-semibold text-slate-950">
+              Live Location Auto-Detection <span className="ml-1 text-xs text-sky-700">(ip-api.com REST API)</span>
+            </p>
+            <p className="text-xs text-steel-600">
+              Auto-detects your city and country via external 3rd-party IP Geolocation REST API.
+            </p>
+          </div>
+        </div>
+        <IpLocationBadge
+          onAutoDetectLocation={geo => {
+            setForm(prev => ({
+              ...prev,
+              city: geo.city || prev.city,
+              lat: geo.lat ?? prev.lat,
+              lng: geo.lon ?? prev.lng,
+            }));
+            if (!isEditing) {setIsEditing(true);}
+            addToast(`Location set to ${geo.city}, ${geo.country} via ip-api.com!`, 'info');
+          }}
+        />
+      </div>
+
       {/* ── Status Banner ─────────────────────────────────────────────── */}
       {statusMessage.text && (
         <div
@@ -347,6 +396,20 @@ const Profile = () => {
               </Badge>
             </div>
             <p className="mt-1 text-sm text-steel-600">{user.email}</p>
+            <div className="mt-2">
+              <IpLocationBadge
+                onAutoDetectLocation={geo => {
+                  setForm(prev => ({
+                    ...prev,
+                    city: geo.city || prev.city,
+                    lat: geo.lat ?? prev.lat,
+                    lng: geo.lon ?? prev.lng,
+                  }));
+                  if (!isEditing) {setIsEditing(true);}
+                  addToast(`Location detected: ${geo.city}, ${geo.country} (via ip-api.com)`, 'info');
+                }}
+              />
+            </div>
           </div>
         </div>
 
@@ -431,6 +494,59 @@ const Profile = () => {
             </div>
 
             <div>
+              <p className="mb-1.5 text-sm font-medium text-steel-700">
+                Location <span className="text-xs text-steel-400">(Optional — used for Trade Chains' in-person meeting-point suggestions)</span>
+              </p>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <div>
+                  <label htmlFor="profile-city" className="mb-1.5 block text-xs font-medium text-steel-600">
+                    City
+                  </label>
+                  <input
+                    id="profile-city"
+                    name="city"
+                    type="text"
+                    placeholder="e.g. Dhaka"
+                    className="input-base"
+                    value={form.city}
+                    onChange={handleChange}
+                    maxLength={100}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="profile-lat" className="mb-1.5 block text-xs font-medium text-steel-600">
+                    Latitude
+                  </label>
+                  <input
+                    id="profile-lat"
+                    name="lat"
+                    type="number"
+                    step="any"
+                    placeholder="e.g. 23.8103"
+                    className="input-base"
+                    value={form.lat}
+                    onChange={handleChange}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="profile-lng" className="mb-1.5 block text-xs font-medium text-steel-600">
+                    Longitude
+                  </label>
+                  <input
+                    id="profile-lng"
+                    name="lng"
+                    type="number"
+                    step="any"
+                    placeholder="e.g. 90.4125"
+                    className="input-base"
+                    value={form.lng}
+                    onChange={handleChange}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div>
               <label htmlFor="profile-bio" className="mb-1.5 block text-sm font-medium text-steel-700">
                 Bio / About Yourself
               </label>
@@ -465,6 +581,7 @@ const Profile = () => {
               <Field label="Phone Number" value={user.phone} />
               <Field label="Role" value={user.role} />
               <Field label="Member Since" value={user.createdAt ? formatDate(user.createdAt) : null} />
+              <Field label="Location" value={user.location?.city} />
             </div>
 
             <div className="mt-6 border-t border-concrete-200 pt-6">

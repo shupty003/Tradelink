@@ -22,6 +22,7 @@ import SkillPrices from '../pages/SkillPrices';
 import MySkills from '../pages/MySkills';
 import Wallet from '../pages/Wallet';
 import Watchlist from '../pages/Watchlist';
+import TradeChains from '../pages/TradeChains';
 import Requests from '../pages/Requests';
 import Transactions from '../pages/Transactions';
 import Profile from '../pages/Profile';
@@ -67,6 +68,7 @@ const router = createBrowserRouter([
       { path: 'skills', element: <MySkills /> },
       { path: 'wallet', element: <Wallet /> },
       { path: 'watchlist', element: <Watchlist /> },
+      { path: 'trade-chains', element: <TradeChains /> },
       { path: 'requests', element: <Requests /> },
       { path: 'transactions', element: <Transactions /> },
       { path: 'profile', element: <Profile /> },

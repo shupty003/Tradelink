@@ -15,6 +15,7 @@
 
 const SkillCategory = require('../models/SkillCategory.model');
 const SkillListing = require('../models/SkillListing.model');
+const reputationService = require('./reputation.service');
 
 const MONGO_SORTS = {
   newest: { createdAt: -1 },
@@ -94,18 +95,37 @@ const getListings = async ({ category, search, sort = 'newest' } = {}) => {
     .sort(MONGO_SORTS[sort] || MONGO_SORTS.newest)
     .lean();
 
-  // Price lives on SkillCategory, not the listing — attach it live.
+  // Attach live prices and provider reputation scores
   const categorySlugs = [...new Set(listings.map(l => l.category).filter(slug => slug !== 'other'))];
-  const categoryDocs = await SkillCategory.find({ slug: { $in: categorySlugs } })
-    .select('slug name priceBDT')
-    .lean();
+  const userIds = [...new Set(listings.map(l => l.user?._id?.toString()).filter(Boolean))];
+
+  const [categoryDocs, reputationResults] = await Promise.all([
+    SkillCategory.find({ slug: { $in: categorySlugs } }).select('slug name priceBDT').lean(),
+    Promise.all(
+      userIds.map(async id => {
+        try {
+          const rep = await reputationService.calculateReputation(id);
+          return { id, rep: { score: rep.score, tier: rep.tier, tierColor: rep.tierColor, breakdown: rep.breakdown } };
+        } catch {
+          return { id, rep: null };
+        }
+      })
+    ),
+  ]);
+
   const categoryBySlug = categoryDocs.reduce((acc, c) => {
     acc[c.slug] = c;
     return acc;
   }, {});
 
+  const reputationByUser = reputationResults.reduce((acc, r) => {
+    acc[r.id] = r.rep;
+    return acc;
+  }, {});
+
   listings = listings.map(listing => {
     const categoryDoc = categoryBySlug[listing.category];
+    const userIdStr = listing.user?._id?.toString();
     return {
       ...listing,
       categoryName:
@@ -113,6 +133,7 @@ const getListings = async ({ category, search, sort = 'newest' } = {}) => {
           ? listing.customCategoryName || 'Other'
           : categoryDoc?.name || listing.category,
       currentPriceBDT: listing.category === 'other' ? null : categoryDoc?.priceBDT ?? null,
+      reputation: reputationByUser[userIdStr] || { score: 75, tier: 'Verified Partner', tierColor: 'green' },
     };
   });
 

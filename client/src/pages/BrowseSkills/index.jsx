@@ -22,6 +22,7 @@ import api from '../../services/api';
 import useAuth from '../../hooks/useAuth';
 import { useToast } from '../../context/ToastContext';
 import { ROUTES } from '../../constants';
+import ReputationBadge from '../../components/common/ReputationBadge';
 import { formatCurrency, truncate } from '../../utils/formatters';
 
 const toLocalInputValue = date => {
@@ -312,20 +313,32 @@ const BrowseSkills = () => {
                   {truncate(listing.description, 120)}
                 </p>
 
-                <div className="mt-4 flex items-center gap-3 border-t border-concrete-200 pt-4">
-                  <Avatar
-                    initials={initialsOf(listing.user?.name)}
-                    src={listing.user?.avatar || undefined}
-                    size="sm"
-                  />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold text-slate-950">
-                      {listing.user?.name || 'Unknown provider'}
-                    </p>
-                    <p className="truncate text-xs text-steel-500">
-                      {listing.user?.company || listing.user?.bio || 'TradeLink member'}
-                    </p>
+                <div className="mt-4 flex items-center justify-between gap-3 border-t border-concrete-200 pt-4">
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <Avatar
+                      initials={initialsOf(listing.user?.name)}
+                      src={listing.user?.avatar || undefined}
+                      size="sm"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold text-slate-950">
+                        {listing.user?.name || 'Unknown provider'}
+                      </p>
+                      <p className="truncate text-xs text-steel-500">
+                        {listing.user?.company || listing.user?.bio || 'TradeLink member'}
+                      </p>
+                    </div>
                   </div>
+                  {listing.reputation && (
+                    <ReputationBadge
+                      score={listing.reputation.score}
+                      tier={listing.reputation.tier}
+                      tierColor={listing.reputation.tierColor}
+                      breakdown={listing.reputation.breakdown}
+                      size="sm"
+                      showBreakdown={false}
+                    />
+                  )}
                 </div>
 
                 {!isLoggedIn ? (

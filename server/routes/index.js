@@ -27,6 +27,10 @@ const adminRoutes            = require('./admin.routes');
 const watchlistRoutes        = require('./watchlist.routes');
 const paymentRoutes          = require('./payment.routes');
 const notificationRoutes     = require('./notification.routes');
+const wantRoutes             = require('./want.routes');
+const tradeChainRoutes       = require('./tradeChain.routes');
+const chainSwapRoutes        = require('./chainSwap.routes');
+const conversationRoutes     = require('./conversation.routes');
 
 const router = express.Router();
 
@@ -47,5 +51,9 @@ router.use('/admin',           adminRoutes);
 router.use('/watchlist',       watchlistRoutes);
 router.use('/payments',        paymentRoutes);
 router.use('/notifications',   notificationRoutes);
+router.use('/wants',           wantRoutes);
+router.use('/trade-chains',    tradeChainRoutes);
+router.use('/chain-swaps',     chainSwapRoutes);
+router.use('/conversations',   conversationRoutes);
 
 module.exports = router;

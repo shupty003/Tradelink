@@ -6,6 +6,7 @@ import Card from '../../components/ui/Card';
 import Skeleton from '../../components/ui/Skeleton';
 import api from '../../services/api';
 import { useToast } from '../../context/ToastContext';
+import IpLocationBadge from '../../components/common/IpLocationBadge';
 
 export default function AdminUsers() {
   const [users, setUsers] = useState([]);
@@ -75,6 +76,21 @@ export default function AdminUsers() {
         title="User Management 👥"
         description="View registered platform members, toggle account verification badges, or suspend accounts violating guidelines."
       />
+
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-sky-200 bg-sky-50/80 p-4 text-sm shadow-sm">
+        <div className="flex items-center gap-3">
+          <span className="text-xl">🌐</span>
+          <div>
+            <p className="font-semibold text-slate-950">
+              Admin Node IP Geolocation <span className="text-xs text-sky-700">(ip-api.com REST API)</span>
+            </p>
+            <p className="text-xs text-steel-600">
+              Current admin session origin auto-detected via external 3rd-party IP Geolocation API.
+            </p>
+          </div>
+        </div>
+        <IpLocationBadge />
+      </div>
 
       {/* Filters Bar */}
       <Card className="p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

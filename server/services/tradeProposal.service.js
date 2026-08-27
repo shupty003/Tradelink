@@ -41,6 +41,8 @@ const googleCalendarService = require('./googleCalendar.service');
 const transactionService = require('./transaction.service');
 const creditWalletService = require('./creditWallet.service');
 const rushPricingService = require('./rushPricing.service');
+const notificationService = require('./notification.service');
+const conversationService = require('./conversation.service');
 const ApiError = require('../utils/ApiError');
 const logger = require('../utils/logger');
 
@@ -247,6 +249,23 @@ const tradeProposalService = {
     await proposal.save();
     await adjustDemand(proposal.category, -1);
     await transactionService.createForProposal(proposal);
+
+    await conversationService.createConversation({
+      requesterId: proposal.requester,
+      providerId: proposal.provider,
+      relatedType: 'TradeProposal',
+      relatedId: proposal._id,
+      listingTitle: proposal.listingTitle,
+    });
+
+    await notificationService.notify(proposal.requester, {
+      category: 'request',
+      type: 'trade_request_accepted',
+      title: 'Trade request accepted',
+      message: `Your trade request for "${proposal.listingTitle}" was accepted.`,
+      link: '/dashboard/requests',
+      relatedTradeProposal: proposal._id,
+    });
 
     return proposal;
   },

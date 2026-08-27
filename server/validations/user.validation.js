@@ -47,6 +47,22 @@ const validateUpdateProfile = [
     .optional()
     .trim(),
 
+  body('location.city')
+    .optional()
+    .trim()
+    .isLength({ max: 100 })
+    .withMessage('City cannot exceed 100 characters'),
+
+  body('location.lat')
+    .optional({ nullable: true })
+    .isFloat({ min: -90, max: 90 })
+    .withMessage('Latitude must be between -90 and 90'),
+
+  body('location.lng')
+    .optional({ nullable: true })
+    .isFloat({ min: -180, max: 180 })
+    .withMessage('Longitude must be between -180 and 180'),
+
   validate,
 ];
 

@@ -24,7 +24,7 @@ const validateNotificationId = [
 ];
 
 const validateCategory = [
-  query('category').optional().isIn(['request', 'transaction', 'profile']).withMessage('Invalid category'),
+  query('category').optional().isIn(['request', 'transaction', 'profile', 'message']).withMessage('Invalid category'),
   validate,
 ];
 
