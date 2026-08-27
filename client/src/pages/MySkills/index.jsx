@@ -46,6 +46,7 @@ const MySkills = () => {
   const [categories, setCategories] = useState([]);
   const [listings, setListings] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
 
   // ─── Wants (Multi-Party Trade Chains) ────────────────────────────────────
   const [wants, setWants] = useState([]);
@@ -67,14 +68,16 @@ const MySkills = () => {
 
   const loadAll = () => {
     setLoading(true);
+    setLoadError('');
     Promise.all([api.get('/valuations'), api.get('/skill-listings/mine')])
       .then(([catRes, listingRes]) => {
         setCategories(catRes.data.data);
         setListings(listingRes.data.data);
       })
-      .catch(() => {
+      .catch(err => {
         setCategories([]);
         setListings([]);
+        setLoadError(err.response?.data?.message || 'Unable to load your listings. Please refresh and try again.');
       })
       .finally(() => setLoading(false));
   };
@@ -402,6 +405,8 @@ const MySkills = () => {
 
         {loading ? (
           <div className="flex items-center justify-center py-16 text-sm text-steel-500">Loading listings…</div>
+        ) : loadError ? (
+          <div className="py-16 text-center text-sm text-red-600">{loadError}</div>
         ) : listings.length === 0 ? (
           <div className="py-16 text-center text-sm text-steel-500">
             You haven't listed any skills yet — add one above.

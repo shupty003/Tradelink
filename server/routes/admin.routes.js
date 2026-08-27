@@ -21,7 +21,6 @@ router.post('/valuation/recalculate', adminController.triggerValuationRecalculat
 router.get('/users', adminController.getUsers);
 router.patch('/users/:userId/suspend', adminController.toggleUserSuspend);
 router.patch('/users/:userId/verify', adminController.toggleUserVerification);
-router.patch('/users/:userId/promote', adminController.promoteToAdmin);
 
 // Category management
 router.get('/categories', adminController.getCategories);
@@ -30,6 +29,10 @@ router.patch('/categories/:categoryId', adminController.updateCategory);
 
 // Trade proposals & dispute resolution
 router.get('/trades', adminController.getTradeProposals);
+router.get('/trades/:proposalId', adminController.getDisputeDetail);
 router.post('/trades/:proposalId/resolve', adminController.resolveDispute);
+router.post('/trades/:proposalId/suspend-both', adminController.suspendDisputeParties);
+router.get('/trades/:proposalId/messages', adminController.getDisputeMessages);
+router.post('/trades/:proposalId/messages', adminController.postDisputeMessage);
 
 module.exports = router;

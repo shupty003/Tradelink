@@ -5,6 +5,7 @@
  */
 
 const adminService = require('../services/admin.service');
+const tradeProposalService = require('../services/tradeProposal.service');
 const { recalculateCategoryPrices } = require('../services/valuation.service');
 
 const adminController = {
@@ -49,20 +50,6 @@ const adminController = {
       res.json({
         success: true,
         message: `User verification updated to ${isVerified ? 'Verified' : 'Unverified'}`,
-        data: user,
-      });
-    } catch (err) {
-      next(err);
-    }
-  },
-
-  promoteToAdmin: async (req, res, next) => {
-    try {
-      const { userId } = req.params;
-      const user = await adminService.promoteToAdmin(userId);
-      res.json({
-        success: true,
-        message: `${user.name} is now an admin.`,
         data: user,
       });
     } catch (err) {
@@ -115,6 +102,16 @@ const adminController = {
     }
   },
 
+  getDisputeDetail: async (req, res, next) => {
+    try {
+      const { proposalId } = req.params;
+      const result = await adminService.getDisputeDetail(proposalId);
+      res.json({ success: true, data: result });
+    } catch (err) {
+      next(err);
+    }
+  },
+
   resolveDispute: async (req, res, next) => {
     try {
       const { proposalId } = req.params;
@@ -124,6 +121,38 @@ const adminController = {
         message: 'Dispute resolved successfully.',
         data: result,
       });
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  suspendDisputeParties: async (req, res, next) => {
+    try {
+      const { proposalId } = req.params;
+      const result = await adminService.suspendDisputeParties(req.user.id, proposalId);
+      res.json({
+        success: true,
+        message: 'Both accounts have been suspended.',
+        data: result,
+      });
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  getDisputeMessages: async (req, res, next) => {
+    try {
+      const messages = await tradeProposalService.getMessages(req.params.proposalId, req.user.id, true);
+      res.json({ success: true, data: messages });
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  postDisputeMessage: async (req, res, next) => {
+    try {
+      const message = await tradeProposalService.postMessage(req.params.proposalId, req.user.id, true, req.body.message);
+      res.status(201).json({ success: true, data: message });
     } catch (err) {
       next(err);
     }

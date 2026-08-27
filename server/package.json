@@ -9,7 +9,8 @@
     "lint": "eslint . --ext .js",
     "lint:fix": "eslint . --ext .js --fix",
     "format": "prettier --write \"**/*.js\"",
-    "create-admin": "node seeds/createAdmin.js"
+    "create-admin": "node seeds/createAdmin.js",
+    "migrate-skills": "node seeds/migrateSkillsToListings.js"
   },
   "keywords": [
     "tradelink",

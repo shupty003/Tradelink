@@ -8,9 +8,12 @@ const User = require('../models/User.model');
 const SkillCategory = require('../models/SkillCategory.model');
 const SkillListing = require('../models/SkillListing.model');
 const TradeProposal = require('../models/TradeProposal.model');
+const ValuationSnapshot = require('../models/ValuationSnapshot.model');
 const Review = require('../models/Review.model');
 const ApiError = require('../utils/ApiError');
 const { recalculateCategoryPrices } = require('./valuation.service');
+const { refundRedeemedCredits } = require('./tradeProposal.service');
+const notificationService = require('./notification.service');
 
 const adminService = {
   /**
@@ -173,11 +176,11 @@ const adminService = {
     }
 
     const skip = (page - 1) * limit;
+    // listingTitle/category are denormalized onto the proposal itself
+    // (see TradeProposal.model.js), so no listing populate is needed.
     const proposals = await TradeProposal.find(query)
       .populate('requester', 'name email avatar')
       .populate('provider', 'name email avatar')
-      .populate('disputedBy', 'name email')
-      .populate('listing', 'title category')
       .sort({ updatedAt: -1 })
       .skip(skip)
       .limit(Number(limit));
@@ -193,47 +196,115 @@ const adminService = {
   },
 
   /**
+   * Dispute Resolution Using Valuation Data — a single disputed trade plus
+   * the exact market rate (ValuationSnapshot) that was in effect for its
+   * skill category at the moment the trade was agreed upon (proposal
+   * creation time), so the admin resolves against objective data rather
+   * than either party's opinion.
+   */
+  getDisputeDetail: async proposalId => {
+    const proposal = await TradeProposal.findById(proposalId)
+      .populate('requester', 'name email avatar')
+      .populate('provider', 'name email avatar');
+    if (!proposal) {throw ApiError.notFound('Trade Proposal not found.');}
+
+    // The nearest snapshot at-or-before the proposal was created — the
+    // market rate both parties were actually looking at when they agreed.
+    const marketRateAtProposal = await ValuationSnapshot.findOne({
+      categorySlug: proposal.category,
+      createdAt: { $lte: proposal.createdAt },
+    })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    return { proposal, marketRateAtProposal };
+  },
+
+  /**
+   * Disputed trades expect both parties to respond within 2 days of the
+   * dispute being raised. If neither engages, the admin has the authority
+   * to suspend both accounts — independent of (and doesn't require) also
+   * resolving the trade's money via resolveDispute.
+   */
+  suspendDisputeParties: async (adminUserId, proposalId) => {
+    const proposal = await TradeProposal.findById(proposalId);
+    if (!proposal) {throw ApiError.notFound('Trade Proposal not found.');}
+    if (proposal.status !== 'disputed') {
+      throw ApiError.badRequest(`Only a disputed trade's parties can be suspended this way (status: ${proposal.status})`);
+    }
+
+    const [requester, provider] = await Promise.all([
+      adminService.toggleUserSuspend(adminUserId, proposal.requester.toString(), true),
+      adminService.toggleUserSuspend(adminUserId, proposal.provider.toString(), true),
+    ]);
+
+    await Promise.all(
+      [proposal.requester.toString(), proposal.provider.toString()].map(userId =>
+        notificationService.notify(userId, {
+          category: 'profile',
+          type: 'dispute_account_suspended',
+          title: 'Your account has been suspended',
+          message: `Your account was suspended over the unresolved dispute for "${proposal.listingTitle}".`,
+          link: '/dashboard/profile',
+          relatedTradeProposal: proposal._id,
+        })
+      )
+    );
+
+    return { requester, provider };
+  },
+
+  /**
    * Admin dispute resolution action.
-   * Action can be: 'refund_requester' (cancel trade) or 'release_provider' (complete trade).
+   * Action can be: 'refund_requester' (cancel trade, refund any redeemed
+   * credits), 'release_provider' (mark the trade completed), or
+   * 'mark_resolved' (close the dispute with no financial action — e.g.
+   * mediation resolved it without needing a refund or release).
    */
   resolveDispute: async (proposalId, { action, adminNote }) => {
     const proposal = await TradeProposal.findById(proposalId);
     if (!proposal) {throw ApiError.notFound('Trade Proposal not found.');}
-
     if (proposal.status !== 'disputed') {
-      throw ApiError.badRequest('Only trades with an open dispute can be resolved.');
+      throw ApiError.badRequest(`Only a disputed trade can be resolved (status: ${proposal.status})`);
     }
 
+    let resolutionSummary;
     if (action === 'refund_requester') {
       proposal.status = 'cancelled';
       proposal.adminResolutionNote = adminNote || 'Trade cancelled by Admin resolution. Credits refunded.';
+      await proposal.save();
+      await refundRedeemedCredits(proposal);
+      resolutionSummary = 'The trade was cancelled and any redeemed credits were refunded.';
     } else if (action === 'release_provider') {
       proposal.status = 'completed';
       proposal.completedAt = new Date();
       proposal.adminResolutionNote = adminNote || 'Trade approved and completed by Admin resolution. Escrow released.';
+      await proposal.save();
+      resolutionSummary = 'The trade was approved and escrow was released to the provider.';
+    } else if (action === 'mark_resolved') {
+      proposal.status = 'completed';
+      proposal.completedAt = new Date();
+      proposal.adminResolutionNote = adminNote || 'Dispute resolved through mediation — no refund or release action needed.';
+      await proposal.save();
+      resolutionSummary = 'The dispute was resolved through mediation with no financial action.';
     } else {
-      throw ApiError.badRequest('Invalid resolution action. Use "refund_requester" or "release_provider".');
+      throw ApiError.badRequest('Invalid resolution action. Use "refund_requester", "release_provider", or "mark_resolved".');
     }
 
-    await proposal.save();
+    await Promise.all(
+      [proposal.requester.toString(), proposal.provider.toString()].map(userId =>
+        notificationService.notify(userId, {
+          category: 'profile',
+          type: 'dispute_resolved',
+          title: 'Dispute resolved',
+          message: `The dispute for "${proposal.listingTitle}" has been resolved. ${resolutionSummary}`,
+          link: '/dashboard/profile',
+          relatedTradeProposal: proposal._id,
+        })
+      )
+    );
+
     return proposal;
-  },
-
-  /**
-   * Promote an existing user to the 'admin' role. Only reachable by an
-   * existing admin (see admin.routes.js's requireAdmin). To create the
-   * very first admin account on a fresh install, use the CLI bootstrap
-   * script instead: `node server/seeds/createAdmin.js <email>`.
-   */
-  promoteToAdmin: async targetUserId => {
-    const user = await User.findById(targetUserId);
-    if (!user) {throw ApiError.notFound('User not found.');}
-    if (user.role === 'admin') {throw ApiError.badRequest('User is already an admin.');}
-
-    user.role = 'admin';
-    await user.save();
-
-    return user.toPublicJSON();
   }
 };
 
